@@ -1,0 +1,14 @@
+# Python
+backend/.venv/
+venv/
+__pycache__/
+*.pyc
+db.sqlite3
+.env
+
+# React
+node_modules/
+dist/
+
+# VS Code
+.vscode/
