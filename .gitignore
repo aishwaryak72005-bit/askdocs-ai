@@ -1,5 +1,7 @@
 # Python
 backend/.venv/
+backend/chroma_db/
+backend/media/
 venv/
 __pycache__/
 *.pyc
