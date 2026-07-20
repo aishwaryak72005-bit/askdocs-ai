@@ -5,32 +5,37 @@ Uses cosine similarity computed in Python (no pgvector extension needed).
 """
 import math
 import logging
-from django.db import models, connection
+from django.db import connection
 
 logger = logging.getLogger(__name__)
 
-# ------------------------------------------------------------------
-# Ensure the table exists (called once at startup)
-# ------------------------------------------------------------------
-CREATE_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS chat_vectorchunk (
-    id          SERIAL PRIMARY KEY,
-    chunk_id    TEXT UNIQUE NOT NULL,
-    user_id     INTEGER NOT NULL,
-    document_id INTEGER NOT NULL,
-    file_name   TEXT NOT NULL,
-    page        INTEGER NOT NULL,
-    content     TEXT NOT NULL,
-    embedding   TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_vectorchunk_user    ON chat_vectorchunk (user_id);
-CREATE INDEX IF NOT EXISTS idx_vectorchunk_doc     ON chat_vectorchunk (document_id);
-"""
+_table_ready = False
 
 
 def _ensure_table():
+    global _table_ready
+    if _table_ready:
+        return
     with connection.cursor() as cur:
-        cur.execute(CREATE_TABLE_SQL)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS chat_vectorchunk (
+                id          SERIAL PRIMARY KEY,
+                chunk_id    TEXT UNIQUE NOT NULL,
+                user_id     INTEGER NOT NULL,
+                document_id INTEGER NOT NULL,
+                file_name   TEXT NOT NULL,
+                page        INTEGER NOT NULL,
+                content     TEXT NOT NULL,
+                embedding   TEXT NOT NULL
+            )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_vectorchunk_user ON chat_vectorchunk (user_id)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_vectorchunk_doc ON chat_vectorchunk (document_id)"
+        )
+    _table_ready = True
 
 
 # ------------------------------------------------------------------
