@@ -48,18 +48,29 @@ def _parse_retry_delay(error: Exception) -> float:
     return 30.0
 
 
-def _call_with_retry(func, max_retries=2, max_delay=60):
+def _is_quota_error(error: Exception) -> bool:
+    text = str(error)
+    return "RESOURCE_EXHAUSTED" in text or "429" in text
+
+
+def _is_retryable(error: Exception) -> bool:
+    text = str(error)
+    return "UNAVAILABLE" in text or "503" in text
+
+
+def _call_with_retry(func, max_retries=1, max_delay=20):
     attempt = 0
     while True:
         try:
             return func()
         except genai_errors.ClientError as e:
+            # Quota errors: fail immediately with friendly message (don't sleep!)
+            if _is_quota_error(e):
+                raise Exception("AI service is currently busy. Please try again in a minute.")
             if not _is_retryable(e) or attempt >= max_retries:
-                if "RESOURCE_EXHAUSTED" in str(e) or "429" in str(e):
-                    raise Exception("AI service is currently busy. Please try again in a minute.")
                 raise
-            delay = _parse_retry_delay(e)
-            logger.warning("Gemini rate-limited, retrying in %.1fs (attempt %d)", delay, attempt + 1)
+            delay = min(_parse_retry_delay(e), max_delay)
+            logger.warning("Gemini unavailable, retrying in %.1fs (attempt %d)", delay, attempt + 1)
             time.sleep(delay)
             attempt += 1
 
