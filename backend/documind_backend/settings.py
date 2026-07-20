@@ -18,6 +18,7 @@ ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_env.split(",") if h.strip()]
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "text-embedding-004")
 
 # ------------------------------------------------------------------
 # Applications
@@ -176,7 +177,6 @@ MAX_PDF_SIZE_MB = int(os.getenv("MAX_PDF_SIZE_MB", 20))
 # RAG / vector store (Chroma + Gemini embeddings)
 # ------------------------------------------------------------------
 CHROMA_DB_DIR = os.getenv("CHROMA_DB_DIR", str(BASE_DIR / "chroma_db"))
-GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
 EMBEDDING_DIMENSIONS = 768          # MRL-reduced from Gemini's default 3072
 CHUNK_SIZE_CHARS = 900
 CHUNK_OVERLAP_CHARS = 150

@@ -37,11 +37,11 @@ class AskQuestionView(APIView):
                 question, user_id=request.user.id, document_id=document_id
             )
         except Exception as e:
-            return Response({"detail": f"AI request failed: {e}"}, status=status.HTTP_502_BAD_GATEWAY)
+            return Response({"detail": f"Retrieval failed: {e}"}, status=status.HTTP_400_BAD_REQUEST)
 
         if not context_text:
             return Response(
-                {"detail": "No indexed content found for that document yet. Try re-uploading it."},
+                {"detail": "No relevant content found in your uploaded document(s) for that question."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -55,7 +55,7 @@ class AskQuestionView(APIView):
         try:
             answer = ask_question(context_text, question, history=recent_history)
         except Exception as e:
-            return Response({"detail": f"AI request failed: {e}"}, status=status.HTTP_502_BAD_GATEWAY)
+            return Response({"detail": f"AI generation failed: {e}"}, status=status.HTTP_400_BAD_REQUEST)
 
         chat_message = ChatMessage.objects.create(
             user=request.user,
@@ -92,7 +92,7 @@ class DocumentSummaryView(APIView):
         try:
             summary = generate_summary(doc.extracted_text)
         except Exception as e:
-            return Response({"detail": f"AI request failed: {e}"}, status=status.HTTP_502_BAD_GATEWAY)
+            return Response({"detail": f"AI request failed: {e}"}, status=status.HTTP_400_BAD_REQUEST)
 
         doc.summary = summary
         doc.save(update_fields=["summary"])
