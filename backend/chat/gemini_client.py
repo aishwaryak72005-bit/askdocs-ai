@@ -71,12 +71,78 @@ def _call_with_retry(func, *, max_retries: int, max_delay: float, **kwargs):
             attempt += 1
 
 
+_GEN_MODEL_CANDIDATES = [
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-2.5-flash",
+]
+
+_EMBED_MODEL_CANDIDATES = [
+    "text-embedding-004",
+    "embedding-001",
+]
+
+
+def _generate_with_fallback(prompt: str):
+    client = _get_client()
+    models_to_try = [settings.GEMINI_MODEL] + [
+        m for m in _GEN_MODEL_CANDIDATES if m != settings.GEMINI_MODEL
+    ]
+
+    last_exc = None
+    for model_name in models_to_try:
+        try:
+            def _do(m=model_name):
+                return client.models.generate_content(model=m, contents=prompt)
+            return _call_with_retry(_do, max_retries=2, max_delay=15)
+        except genai_errors.ClientError as e:
+            last_exc = e
+            if "404" in str(e) or "NOT_FOUND" in str(e):
+                logger.warning("Generation model %s not found, trying fallback...", model_name)
+                continue
+            raise
+    if last_exc:
+        raise last_exc
+
+
+def _embed_with_fallback(contents, task_type: str):
+    client = _get_client()
+    config = types.EmbedContentConfig(
+        task_type=task_type,
+        output_dimensionality=settings.EMBEDDING_DIMENSIONS,
+    )
+    models_to_try = [settings.GEMINI_EMBEDDING_MODEL] + [
+        m for m in _EMBED_MODEL_CANDIDATES if m != settings.GEMINI_EMBEDDING_MODEL
+    ]
+
+    last_exc = None
+    for model_name in models_to_try:
+        # Try 1: with config
+        try:
+            def _do1(m=model_name):
+                return client.models.embed_content(model=m, contents=contents, config=config)
+            return _call_with_retry(_do1, max_retries=2, max_delay=15)
+        except genai_errors.ClientError as e:
+            last_exc = e
+            if "404" in str(e) or "NOT_FOUND" in str(e):
+                # Try 2: without config
+                try:
+                    def _do2(m=model_name):
+                        return client.models.embed_content(model=m, contents=contents)
+                    return _call_with_retry(_do2, max_retries=1, max_delay=10)
+                except genai_errors.ClientError as e2:
+                    last_exc = e2
+                    logger.warning("Embedding model %s failed, trying next candidate...", model_name)
+                    continue
+            raise
+    if last_exc:
+        raise last_exc
+
+
 def ask_question(context_text: str, question: str, history: list = None) -> str:
     """
     Answer a question grounded strictly in the provided context and previous chat history.
     """
-    client = _get_client()
-
     history_text = ""
     if history:
         turns = []
@@ -100,10 +166,7 @@ def ask_question(context_text: str, question: str, history: list = None) -> str:
         f"QUESTION: {question}\n\nANSWER:"
     )
 
-    def _do():
-        return client.models.generate_content(model=settings.GEMINI_MODEL, contents=prompt)
-
-    response = _call_with_retry(_do, max_retries=3, max_delay=30)
+    response = _generate_with_fallback(prompt)
     return response.text.strip()
 
 
@@ -111,51 +174,24 @@ _EMBED_BATCH_SIZE = 20
 
 
 def embed_documents(texts: list[str]) -> list[list[float]]:
-    client = _get_client()
-    config = types.EmbedContentConfig(
-        task_type="RETRIEVAL_DOCUMENT",
-        output_dimensionality=settings.EMBEDDING_DIMENSIONS,
-    )
     vectors = []
     for i in range(0, len(texts), _EMBED_BATCH_SIZE):
         batch = texts[i : i + _EMBED_BATCH_SIZE]
-
-        def _do(batch=batch):
-            return client.models.embed_content(
-                model=settings.GEMINI_EMBEDDING_MODEL, contents=batch, config=config
-            )
-
-        response = _call_with_retry(_do, max_retries=4, max_delay=65)
+        response = _embed_with_fallback(batch, task_type="RETRIEVAL_DOCUMENT")
         vectors.extend([e.values for e in response.embeddings])
     return vectors
 
 
 def embed_query(text: str) -> list[float]:
-    client = _get_client()
-    config = types.EmbedContentConfig(
-        task_type="RETRIEVAL_QUERY",
-        output_dimensionality=settings.EMBEDDING_DIMENSIONS,
-    )
-
-    def _do():
-        return client.models.embed_content(
-            model=settings.GEMINI_EMBEDDING_MODEL, contents=text, config=config
-        )
-
-    response = _call_with_retry(_do, max_retries=2, max_delay=15)
+    response = _embed_with_fallback(text, task_type="RETRIEVAL_QUERY")
     return response.embeddings[0].values
 
 
 def generate_summary(document_text: str) -> str:
-    client = _get_client()
     prompt = (
         "Summarize the following document clearly with key takeaways.\n"
         "Format the summary cleanly with brief bullet points.\n\n"
         f"DOCUMENT:\n{_truncate(document_text)}"
     )
-
-    def _do():
-        return client.models.generate_content(model=settings.GEMINI_MODEL, contents=prompt)
-
-    response = _call_with_retry(_do, max_retries=3, max_delay=30)
+    response = _generate_with_fallback(prompt)
     return response.text.strip()
