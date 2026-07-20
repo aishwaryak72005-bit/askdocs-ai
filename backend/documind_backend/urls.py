@@ -7,7 +7,7 @@ from django.http import JsonResponse
 def root_view(request):
     return JsonResponse({
         "status": "online",
-        "message": "DocuMind AI Backend API is running successfully.",
+        "message": "AskDocs AI Backend API is running successfully.",
         "endpoints": {
             "admin": "/admin/",
             "api": "/api/"

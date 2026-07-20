@@ -32,7 +32,7 @@ export default function Register() {
     <div className="auth-wrap">
       <div className="auth-panel">
         <Link to="/login" className="auth-panel-brand">
-          <BookMarked size={22} /> DocuMind
+          <BookMarked size={22} /> AskDocs AI
         </Link>
 
         <div className="stamp-float s1">notice-period · p.2</div>
@@ -42,13 +42,13 @@ export default function Register() {
         <div className="auth-panel-copy">
           <h2>Your documents, indexed and ready.</h2>
           <p>
-            Drop in up to ten PDFs. DocuMind chunks, embeds, and indexes
+            Drop in up to ten PDFs. AskDocs AI chunks, embeds, and indexes
             each one so you can ask across all of them at once — and get
             answers you can actually verify.
           </p>
         </div>
 
-        <div className="auth-panel-footer">documind — retrieval-grounded Q&amp;A</div>
+        <div className="auth-panel-footer">askdocs ai — retrieval-grounded Q&amp;A</div>
       </div>
 
       <div className="auth-form-side">

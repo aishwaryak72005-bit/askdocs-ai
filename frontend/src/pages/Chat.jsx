@@ -87,7 +87,7 @@ export default function Chat() {
               )}
               {messages.map((m) => (
                 <div className={`chat-bubble ${m.role}`} key={m.id}>
-                  <div className="bubble-label">{m.role === "question" ? "You" : "DocuMind"}</div>
+                  <div className="bubble-label">{m.role === "question" ? "You" : "AskDocs AI"}</div>
                   <div className="bubble-content">{m.text}</div>
                   {m.role === "answer" && m.sources?.length > 0 && (
                     <div className="source-tags">
@@ -102,7 +102,7 @@ export default function Chat() {
               ))}
               {asking && (
                 <div className="chat-bubble answer">
-                  <div className="bubble-label">DocuMind</div>
+                  <div className="bubble-label">AskDocs AI</div>
                   <div className="bubble-content">
                     <span className="thinking">
                       <span className="spinner-dot" />

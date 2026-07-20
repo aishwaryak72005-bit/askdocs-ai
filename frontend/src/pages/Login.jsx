@@ -29,7 +29,7 @@ export default function Login() {
     <div className="auth-wrap">
       <div className="auth-panel">
         <Link to="/login" className="auth-panel-brand">
-          <BookMarked size={22} /> DocuMind
+          <BookMarked size={22} /> AskDocs AI
         </Link>
 
         <div className="stamp-float s1">ask · p.12</div>
@@ -39,13 +39,13 @@ export default function Login() {
         <div className="auth-panel-copy">
           <h2>Every answer, traced to its page.</h2>
           <p>
-            Upload your PDFs and ask questions in plain language. DocuMind
+            Upload your PDFs and ask questions in plain language. AskDocs AI
             retrieves the exact passages behind each answer, so you always
             know where it came from.
           </p>
         </div>
 
-        <div className="auth-panel-footer">documind — retrieval-grounded Q&amp;A</div>
+        <div className="auth-panel-footer">askdocs ai — retrieval-grounded Q&amp;A</div>
       </div>
 
       <div className="auth-form-side">

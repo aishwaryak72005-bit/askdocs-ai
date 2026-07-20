@@ -97,7 +97,7 @@ def ask_question(context_text: str, question: str) -> str:
     """
     client = _get_client()
     prompt = (
-        "You are DocuMind AI, a document question-answering assistant. "
+        "You are AskDocs AI, a document question-answering assistant. "
         "Answer the user's question using ONLY the information in the "
         "retrieved excerpts below. Each excerpt is labeled with its source "
         "document and page number. If the answer isn't in the excerpts, say "

@@ -17,7 +17,7 @@ export default function Navbar() {
         <span className="brand-icon">
           <BookMarked size={20} strokeWidth={2.2} />
         </span>
-        Docu<span className="brand-mark">Mind</span>
+        Ask<span className="brand-mark">Docs AI</span>
       </Link>
       <nav className="nav-links">
         <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
