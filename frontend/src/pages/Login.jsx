@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { BookMarked, AlertCircle } from "lucide-react";
+import { BookMarked, AlertCircle, Mail, Lock, ArrowRight, Sparkles, FileSearch, ShieldCheck } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
@@ -26,67 +26,107 @@ export default function Login() {
   }
 
   return (
-    <div className="auth-wrap">
-      <div className="auth-panel">
-        <Link to="/login" className="auth-panel-brand">
-          <BookMarked size={22} /> AskDocs AI
-        </Link>
+    <div className="auth-hero-container">
+      {/* Background ambient lighting */}
+      <div className="ambient-orb orb-1" />
+      <div className="ambient-orb orb-2" />
 
-        <div className="stamp-float s1">ask · p.12</div>
-        <div className="stamp-float s2">hr-policy.pdf</div>
-        <div className="stamp-float s3">cited · p.3</div>
+      <div className="auth-content-grid">
+        {/* Left Side: Brand Showcase */}
+        <div className="auth-brand-side enter">
+          <div className="brand-badge">
+            <Sparkles size={14} /> Powered by Gemini 2.0 &amp; RAG
+          </div>
+          
+          <h1 className="auth-hero-title">
+            Ask Questions Across <span className="gradient-text">All Your PDFs.</span>
+          </h1>
 
-        <div className="auth-panel-copy">
-          <h2>Every answer, traced to its page.</h2>
-          <p>
-            Upload your PDFs and ask questions in plain language. AskDocs AI
-            retrieves the exact passages behind each answer, so you always
-            know where it came from.
+          <p className="auth-hero-desc">
+            Upload your documents and get instant, accurate answers with exact page-level citations — so you always know where facts come from.
           </p>
+
+          <div className="feature-cards-grid">
+            <div className="feature-pill-card">
+              <FileSearch className="feature-icon" size={20} />
+              <div>
+                <strong>Page-Level Citations</strong>
+                <p>Every response links to exact pages</p>
+              </div>
+            </div>
+
+            <div className="feature-pill-card">
+              <ShieldCheck className="feature-icon" size={20} />
+              <div>
+                <strong>Isolated Vector Store</strong>
+                <p>Your documents stay private to your account</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="auth-panel-footer">askdocs ai — retrieval-grounded Q&amp;A</div>
-      </div>
-
-      <div className="auth-form-side">
-        <div className="auth-card enter">
-          <h1>Welcome back</h1>
-          <p className="auth-sub">Sign in to keep working with your documents.</p>
-
-          {error && (
-            <div className="error-banner">
-              <AlertCircle size={16} /> {error}
+        {/* Right Side: Modern Glass Form */}
+        <div className="auth-card-side enter">
+          <div className="auth-glass-card">
+            <div className="auth-header">
+              <div className="auth-logo">
+                <BookMarked size={22} />
+              </div>
+              <h2>Welcome Back</h2>
+              <p>Sign in to access your document library</p>
             </div>
-          )}
 
-          <form onSubmit={handleSubmit}>
-            <div className="mb-3">
-              <label className="form-label">Email</label>
-              <input
-                type="email"
-                className="form-control"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Password</label>
-              <input
-                type="password"
-                className="form-control"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <button type="submit" className="btn btn-primary w-100" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
-            </button>
-          </form>
+            {error && (
+              <div className="error-banner">
+                <AlertCircle size={16} /> {error}
+              </div>
+            )}
 
-          <div className="auth-switch">
-            No account yet? <Link to="/register">Create one</Link>
+            <form onSubmit={handleSubmit}>
+              <div className="input-group-custom">
+                <label>Email Address</label>
+                <div className="input-with-icon">
+                  <Mail className="field-icon" size={18} />
+                  <input
+                    type="email"
+                    className="form-control-custom"
+                    placeholder="name@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="input-group-custom">
+                <label>Password</label>
+                <div className="input-with-icon">
+                  <Lock className="field-icon" size={18} />
+                  <input
+                    type="password"
+                    className="form-control-custom"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <button type="submit" className="btn-glow-primary" disabled={loading}>
+                {loading ? (
+                  "Signing in…"
+                ) : (
+                  <>
+                    Sign In <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="auth-footer-link">
+              Don't have an account? <Link to="/register">Create one for free</Link>
+            </div>
           </div>
         </div>
       </div>

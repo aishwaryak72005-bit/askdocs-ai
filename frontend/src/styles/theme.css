@@ -1,8 +1,8 @@
 /* ==================================================================
-   AskDocs AI — High-Contrast Semi-Dark Modern Theme
+   AskDocs AI — State-of-the-Art Modern Dark Theme Design System
 ================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
   /* ---- Semi-Dark Color Palette ---- */
@@ -36,6 +36,7 @@
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
+  --radius-xl: 28px;
   
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
@@ -457,7 +458,7 @@ a:hover {
   border-left: 4px solid var(--accent-cyan);
   border-radius: 4px var(--radius-md) var(--radius-md) var(--radius-md);
   padding: 1.1rem 1.35rem;
-  color: #ffffff;              /* Crisp White */
+  color: #ffffff;
   font-size: 0.95rem;
   line-height: 1.7;
 }
@@ -472,7 +473,7 @@ a:hover {
    High Contrast Formatted Text & Markdown
 ------------------------------------------------------------------- */
 .formatted-text {
-  color: #ffffff !important;   /* Bright white text for modal and chat */
+  color: #ffffff !important;
 }
 .formatted-text p {
   color: #f8fafc !important;
@@ -487,7 +488,7 @@ a:hover {
   font-weight: 700;
 }
 .formatted-text strong {
-  color: #38bdf8 !important;   /* Bright cyan bolding */
+  color: #38bdf8 !important;
   font-weight: 700;
 }
 .formatted-list {
@@ -540,61 +541,238 @@ a:hover {
   overflow-y: auto;
 }
 
-/* ------------------------------------------------------------------
-   Auth Pages
-------------------------------------------------------------------- */
-.auth-wrap {
+/* ==================================================================
+   Innovative Hero Auth Layout
+================================================================== */
+.auth-hero-container {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-}
-.auth-panel {
-  background: #0f172a;
-  border-right: 1.5px solid var(--border);
-  padding: 4rem 3rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-.auth-panel-brand {
-  font-family: var(--font-display);
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: #ffffff;
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-.auth-panel-copy h2 {
-  font-size: 2.4rem;
-  color: #ffffff;
-  margin-bottom: 0.8rem;
-}
-.auth-panel-copy p {
-  color: var(--text-muted);
-  font-size: 1rem;
-}
-.auth-form-side {
-  background: #0f172a;
+  background-color: #090d16;
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2.5rem;
-}
-.auth-card {
-  width: 100%;
-  max-width: 400px;
-  background: #1e293b;
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-lg);
   padding: 2rem;
 }
 
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+.ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  opacity: 0.45;
 }
-.enter {
-  animation: fadeSlideUp 0.3s ease-out both;
+.orb-1 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, #38bdf8 0%, #6366f1 100%);
+  top: -100px;
+  left: -100px;
+}
+.orb-2 {
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, #c084fc 0%, #14b8a6 100%);
+  bottom: -100px;
+  right: -100px;
+}
+
+.auth-content-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 4rem;
+  max-width: 1100px;
+  width: 100%;
+  align-items: center;
+  z-index: 10;
+}
+@media (max-width: 900px) {
+  .auth-content-grid {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+}
+
+.auth-brand-side {
+  color: #fff;
+}
+
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  background: rgba(56, 189, 248, 0.12);
+  border: 1.5px solid rgba(56, 189, 248, 0.3);
+  padding: 0.4rem 0.9rem;
+  border-radius: 30px;
+  margin-bottom: 1.5rem;
+}
+
+.auth-hero-title {
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: 1rem;
+}
+.gradient-text {
+  background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.auth-hero-desc {
+  font-size: 1.05rem;
+  color: #94a3b8;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  max-width: 480px;
+}
+
+.feature-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.feature-pill-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(30, 41, 59, 0.6);
+  backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+}
+.feature-icon {
+  color: var(--accent-cyan);
+  flex-shrink: 0;
+}
+.feature-pill-card strong {
+  color: #ffffff;
+  font-size: 0.95rem;
+  display: block;
+}
+.feature-pill-card p {
+  color: #94a3b8;
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+/* Glass Card */
+.auth-glass-card {
+  background: rgba(30, 41, 59, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-xl);
+  padding: 2.75rem 2.25rem;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.auth-logo {
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(135deg, #38bdf8, #6366f1);
+  color: #fff;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+}
+.auth-header h2 {
+  font-size: 1.75rem;
+  margin-bottom: 0.3rem;
+  color: #ffffff;
+}
+.auth-header p {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.input-group-custom {
+  margin-bottom: 1.35rem;
+}
+.input-group-custom label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-bottom: 0.45rem;
+}
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.field-icon {
+  position: absolute;
+  left: 1rem;
+  color: #64748b;
+  pointer-events: none;
+  transition: color 0.15s ease;
+}
+.form-control-custom {
+  width: 100%;
+  background: #0f172a;
+  border: 1.5px solid #334155;
+  color: #ffffff;
+  border-radius: var(--radius-md);
+  padding: 0.8rem 1rem 0.8rem 2.8rem;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+.form-control-custom:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.2);
+}
+.form-control-custom:focus + .field-icon,
+.input-with-icon:focus-within .field-icon {
+  color: #38bdf8;
+}
+
+.btn-glow-primary {
+  width: 100%;
+  background: linear-gradient(135deg, #38bdf8, #6366f1);
+  border: none;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 0.9rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35);
+  transition: all 0.25s ease;
+}
+.btn-glow-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(56, 189, 248, 0.5);
+  background: linear-gradient(135deg, #0284c7, #4f46e5);
+}
+
+.auth-footer-link {
+  text-align: center;
+  margin-top: 1.75rem;
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+.auth-footer-link a {
+  color: #38bdf8;
+  font-weight: 600;
 }
