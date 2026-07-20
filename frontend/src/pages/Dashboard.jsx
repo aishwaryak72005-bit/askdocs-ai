@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { UploadCloud, FileText, Sparkles, Trash2, AlertCircle, Inbox, X } from "lucide-react";
 import api from "../api/axios";
+import FormattedMarkdown from "../components/FormattedMarkdown";
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -84,9 +85,12 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="page-container">
+    <div className="page-container enter">
       <div className="section-heading">
-        <h2>Your documents</h2>
+        <div>
+          <h2>Your documents</h2>
+          <p className="page-sub">Manage and query your PDF collection</p>
+        </div>
         <span className="count-pill">{documents.length}/10 uploaded</span>
       </div>
 
@@ -120,10 +124,15 @@ export default function Dashboard() {
           onChange={(e) => uploadFiles(e.target.files)}
         />
         <div className="upload-zone-icon">
-          <UploadCloud size={28} strokeWidth={1.6} />
+          <UploadCloud size={32} strokeWidth={1.6} />
         </div>
         {uploading ? (
-          <span>Uploading and indexing…</span>
+          <span className="thinking">
+            <span className="spinner-dot" />
+            <span className="spinner-dot" />
+            <span className="spinner-dot" />
+            &nbsp;Uploading, extracting &amp; indexing PDF…
+          </span>
         ) : (
           <>
             <strong>Drop PDFs here</strong> or click to browse
@@ -135,17 +144,17 @@ export default function Dashboard() {
       {loading ? (
         <div className="empty-state">Loading your documents…</div>
       ) : documents.length === 0 ? (
-        <div className="empty-state">
-          <Inbox size={32} className="empty-state-icon" strokeWidth={1.4} />
-          No documents yet. Upload a PDF to get started.
+        <div className="empty-state glass-card">
+          <Inbox size={36} className="empty-state-icon" strokeWidth={1.4} />
+          <p>No documents yet. Upload a PDF to get started.</p>
         </div>
       ) : (
         <div className="doc-grid">
           {documents.map((doc) => (
-            <div className="doc-card enter" key={doc.id}>
+            <div className="doc-card glass-card enter" key={doc.id}>
               <div className="doc-card-top">
                 <div className="doc-card-icon">
-                  <FileText size={17} />
+                  <FileText size={18} />
                 </div>
                 <div>
                   <div className="doc-name">{doc.file_name}</div>
@@ -182,28 +191,28 @@ export default function Dashboard() {
       {summaryDoc && (
         <div
           className="modal d-block"
-          style={{ background: "rgba(26,31,54,0.5)" }}
+          style={{ background: "rgba(9, 13, 22, 0.8)", backdropFilter: "blur(8px)" }}
           onClick={() => setSummaryDoc(null)}
         >
-          <div className="modal-dialog modal-dialog-centered" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-content">
-              <div className="modal-header">
+          <div className="modal-dialog modal-dialog-centered modal-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content glass-card">
+              <div className="modal-header border-bottom border-secondary border-opacity-25">
                 <h5 className="modal-title font-display d-flex align-items-center gap-2">
-                  <Sparkles size={16} style={{ color: "var(--archive)" }} />
-                  {summaryDoc.file_name}
+                  <Sparkles size={18} style={{ color: "#38bdf8" }} />
+                  {summaryDoc.file_name} Summary
                 </h5>
-                <button className="btn-close" onClick={() => setSummaryDoc(null)} />
+                <button className="btn-close btn-close-white" onClick={() => setSummaryDoc(null)} />
               </div>
-              <div className="modal-body">
+              <div className="modal-body p-4">
                 {summaryLoading ? (
-                  <span className="thinking">
+                  <div className="thinking py-4">
                     <span className="spinner-dot" />
                     <span className="spinner-dot" />
                     <span className="spinner-dot" />
-                    &nbsp;generating summary…
-                  </span>
+                    &nbsp;Generating AI summary…
+                  </div>
                 ) : (
-                  <div style={{ whiteSpace: "pre-wrap" }}>{summaryText}</div>
+                  <FormattedMarkdown content={summaryText} />
                 )}
               </div>
             </div>

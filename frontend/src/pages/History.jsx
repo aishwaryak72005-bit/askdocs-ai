@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Clock, FileText, Layers, Archive } from "lucide-react";
 import api from "../api/axios";
 import { groupSourcesByFile } from "../utils/sources";
+import FormattedMarkdown from "../components/FormattedMarkdown";
 
 function formatDate(iso) {
   return new Date(iso).toLocaleString(undefined, {
@@ -27,40 +28,49 @@ export default function History() {
   }, []);
 
   return (
-    <div className="page-container">
-      <h2 style={{ marginBottom: "1.4rem" }}>Chat history</h2>
+    <div className="page-container enter">
+      <div className="page-header-row">
+        <div>
+          <h2>Chat history</h2>
+          <p className="page-sub">Review past Q&amp;A sessions and cited sources</p>
+        </div>
+      </div>
 
       {error && <div className="error-banner">{error}</div>}
 
       {loading ? (
         <div className="empty-state">Loading…</div>
       ) : messages.length === 0 ? (
-        <div className="empty-state">
-          <Archive size={32} className="empty-state-icon" strokeWidth={1.4} />
-          No questions asked yet.
+        <div className="empty-state glass-card">
+          <Archive size={36} className="empty-state-icon" strokeWidth={1.4} />
+          <p>No questions asked yet.</p>
         </div>
       ) : (
-        <div>
+        <div className="d-flex flex-column gap-3">
           {messages.map((m) => (
-            <div key={m.id} className="history-item enter">
-              <div className="history-meta">
-                <Clock size={12} />
+            <div key={m.id} className="history-item glass-card p-4 enter">
+              <div className="history-meta mb-2">
+                <Clock size={13} />
                 {formatDate(m.timestamp)}
                 <span style={{ opacity: 0.5 }}>·</span>
                 {m.document_name ? (
                   <>
-                    <FileText size={12} /> {m.document_name}
+                    <FileText size={13} /> {m.document_name}
                   </>
                 ) : (
                   <>
-                    <Layers size={12} /> all documents
+                    <Layers size={13} /> All documents
                   </>
                 )}
               </div>
-              <div className="history-question">{m.question}</div>
-              <div className="history-answer">{m.answer}</div>
+              <div className="history-question mb-2 text-info font-weight-bold">
+                Q: {m.question}
+              </div>
+              <div className="history-answer">
+                <FormattedMarkdown content={m.answer} />
+              </div>
               {m.sources?.length > 0 && (
-                <div className="source-tags">
+                <div className="source-tags mt-3">
                   {groupSourcesByFile(m.sources).map((s, i) => (
                     <span className="source-tag" key={i}>
                       {s.file_name} · p.{s.pages.join(", ")}

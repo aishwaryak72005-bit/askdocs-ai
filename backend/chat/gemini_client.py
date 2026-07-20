@@ -28,17 +28,6 @@ def _truncate(text: str) -> str:
     return text
 
 
-# ----------------------------------------------------------------------
-# Retry with backoff for rate limits (429 RESOURCE_EXHAUSTED) and
-# transient server errors (503 UNAVAILABLE etc).
-#
-# Gemini's free tier is easy to hit (100 embedding requests/minute), and
-# when it's exceeded the API tells you exactly how long to wait via a
-# "retryDelay" field in the error — e.g. "Please retry in 57.3s". This
-# respects that hint instead of guessing with blind exponential backoff,
-# and only falls back to backoff when no hint is given.
-# ----------------------------------------------------------------------
-
 _RETRYABLE_STATUS_CODES = {429, 503}
 _RETRY_DELAY_RE = re.compile(r"retryDelay['\"]?\s*[:=]\s*['\"]?(\d+(?:\.\d+)?)s")
 _RETRY_IN_RE = re.compile(r"retry in ([\d.]+)s")
@@ -62,13 +51,6 @@ def _suggested_delay(error: Exception) -> float | None:
 
 
 def _call_with_retry(func, *, max_retries: int, max_delay: float, **kwargs):
-    """
-    Calls func(**kwargs), retrying on rate-limit/transient errors.
-    Waits the server-suggested delay when available (capped at max_delay),
-    otherwise falls back to exponential backoff (2s, 4s, 8s, ...).
-    Re-raises the original error once retries are exhausted or the error
-    isn't retryable (e.g. bad API key — no point waiting on those).
-    """
     attempt = 0
     while True:
         try:
@@ -89,20 +71,31 @@ def _call_with_retry(func, *, max_retries: int, max_delay: float, **kwargs):
             attempt += 1
 
 
-def ask_question(context_text: str, question: str) -> str:
+def ask_question(context_text: str, question: str, history: list = None) -> str:
     """
-    Answer a question grounded strictly in the provided context.
-    context_text is expected to already be a set of labeled, retrieved
-    chunks (see chat/retrieval.py), not a whole document.
+    Answer a question grounded strictly in the provided context and previous chat history.
     """
     client = _get_client()
+
+    history_text = ""
+    if history:
+        turns = []
+        for item in history:
+            q = getattr(item, "question", None) if not isinstance(item, dict) else item.get("question")
+            a = getattr(item, "answer", None) if not isinstance(item, dict) else item.get("answer")
+            if q and a:
+                turns.append(f"User: {q}\nAskDocs AI: {a}")
+        if turns:
+            history_text = "PREVIOUS CONVERSATION HISTORY:\n" + "\n---\n".join(turns) + "\n\n"
+
     prompt = (
-        "You are AskDocs AI, a document question-answering assistant. "
+        "You are AskDocs AI, an intelligent document question-answering assistant. "
         "Answer the user's question using ONLY the information in the "
-        "retrieved excerpts below. Each excerpt is labeled with its source "
-        "document and page number. If the answer isn't in the excerpts, say "
-        "you couldn't find it in the uploaded documents. When you use a "
-        "fact, mention which document/page it came from.\n\n"
+        "retrieved excerpts below, keeping in mind the conversation history if relevant. "
+        "Each excerpt is labeled with its source document and page number. "
+        "If the answer isn't in the excerpts, say you couldn't find it in the uploaded documents. "
+        "When you use a fact, mention which document/page it came from.\n\n"
+        f"{history_text}"
         f"RETRIEVED EXCERPTS:\n{_truncate(context_text)}\n\n"
         f"QUESTION: {question}\n\nANSWER:"
     )
@@ -118,7 +111,6 @@ _EMBED_BATCH_SIZE = 20
 
 
 def embed_documents(texts: list[str]) -> list[list[float]]:
-    """Embed a batch of document chunks for storage (RETRIEVAL_DOCUMENT task)."""
     client = _get_client()
     config = types.EmbedContentConfig(
         task_type="RETRIEVAL_DOCUMENT",
@@ -133,16 +125,12 @@ def embed_documents(texts: list[str]) -> list[list[float]]:
                 model=settings.GEMINI_EMBEDDING_MODEL, contents=batch, config=config
             )
 
-        # Free-tier quota resets fairly quickly but can suggest waits of
-        # a minute or more between batches — worth waiting out during a
-        # one-time upload/indexing pass rather than failing the whole doc.
         response = _call_with_retry(_do, max_retries=4, max_delay=65)
         vectors.extend([e.values for e in response.embeddings])
     return vectors
 
 
 def embed_query(text: str) -> list[float]:
-    """Embed a single user question for retrieval (RETRIEVAL_QUERY task)."""
     client = _get_client()
     config = types.EmbedContentConfig(
         task_type="RETRIEVAL_QUERY",
@@ -154,19 +142,15 @@ def embed_query(text: str) -> list[float]:
             model=settings.GEMINI_EMBEDDING_MODEL, contents=text, config=config
         )
 
-    # Kept shorter than embed_documents — this happens inline while a user
-    # is waiting on an answer, so fail fast with a clear error instead of
-    # making them stare at a spinner for a minute.
     response = _call_with_retry(_do, max_retries=2, max_delay=15)
     return response.embeddings[0].values
 
 
 def generate_summary(document_text: str) -> str:
-    """Generate a short summary plus key points for a document."""
     client = _get_client()
     prompt = (
-        "Summarize the following document in 3-5 sentences, then list 3-6 key "
-        "points as bullet points.\n\n"
+        "Summarize the following document clearly with key takeaways.\n"
+        "Format the summary cleanly with brief bullet points.\n\n"
         f"DOCUMENT:\n{_truncate(document_text)}"
     )
 

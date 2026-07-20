@@ -13,13 +13,6 @@ class AskQuestionView(APIView):
     """
     POST /api/ask
     Body: { "question": "...", "document_id": <int, optional> }
-
-    Uses retrieval-augmented generation: the question is embedded, the most
-    relevant chunks are pulled from the vector store (scoped to this user,
-    and to one document if document_id is given), and only those chunks are
-    sent to Gemini as context. This scales to large/many documents far
-    better than stuffing full document text into the prompt, and lets
-    answers cite the specific page they came from.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -52,8 +45,15 @@ class AskQuestionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Retrieve recent chat history for context (up to 5 past messages)
+        recent_history = list(
+            ChatMessage.objects.filter(user=request.user)
+            .order_by("-created_at")[:5]
+        )
+        recent_history.reverse()
+
         try:
-            answer = ask_question(context_text, question)
+            answer = ask_question(context_text, question, history=recent_history)
         except Exception as e:
             return Response({"detail": f"AI request failed: {e}"}, status=status.HTTP_502_BAD_GATEWAY)
 
@@ -72,7 +72,7 @@ class ChatHistoryView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        messages = ChatMessage.objects.filter(user=request.user)
+        messages = ChatMessage.objects.filter(user=request.user).order_by("created_at")
         return Response(ChatMessageSerializer(messages, many=True).data)
 
 
