@@ -586,12 +586,6 @@ a:hover {
   align-items: center;
   z-index: 10;
 }
-@media (max-width: 900px) {
-  .auth-content-grid {
-    grid-template-columns: 1fr;
-    gap: 2.5rem;
-  }
-}
 
 .auth-brand-side {
   color: #fff;
@@ -775,4 +769,108 @@ a:hover {
 .auth-footer-link a {
   color: #38bdf8;
   font-weight: 600;
+}
+
+/* ==================================================================
+   Mobile Responsive Media Queries
+================================================================== */
+@media (max-width: 768px) {
+  /* Topbar */
+  .topbar {
+    padding: 0.75rem 1rem;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch;
+  }
+  .topbar .brand {
+    justify-content: center;
+  }
+  .nav-links {
+    justify-content: center;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+  }
+  .nav-links a {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+
+  /* Page Container */
+  .page-container {
+    padding: 1.25rem 1rem 3rem;
+  }
+  .page-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  /* Old Auth Wrap fallback */
+  .auth-wrap {
+    grid-template-columns: 1fr !important;
+  }
+  .auth-panel {
+    padding: 2rem 1.25rem;
+  }
+
+  /* Innovative Hero Auth Container */
+  .auth-hero-container {
+    padding: 1.25rem 1rem;
+  }
+  .auth-content-grid {
+    grid-template-columns: 1fr !important;
+    gap: 2rem;
+  }
+  .auth-hero-title {
+    font-size: 2rem !important;
+  }
+  .auth-hero-desc {
+    font-size: 0.95rem;
+  }
+  .auth-glass-card {
+    padding: 1.75rem 1.25rem !important;
+    border-radius: var(--radius-lg) !important;
+  }
+  .auth-header h2 {
+    font-size: 1.4rem;
+  }
+
+  /* Chat Shell */
+  .chat-shell {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    min-height: auto;
+  }
+  .chat-doc-list {
+    max-height: 140px;
+  }
+  .chat-messages {
+    min-height: 380px;
+    padding: 1rem;
+  }
+  .chat-bubble {
+    max-width: 95% !important;
+  }
+
+  /* Upload & Document Grid */
+  .upload-zone {
+    padding: 2rem 1rem;
+  }
+  .doc-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-hero-title {
+    font-size: 1.7rem !important;
+  }
+  .feature-pill-card {
+    padding: 0.85rem 1rem;
+  }
+  .btn-glow-primary {
+    padding: 0.8rem;
+    font-size: 0.95rem;
+  }
 }
