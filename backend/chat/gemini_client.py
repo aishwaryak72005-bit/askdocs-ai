@@ -1,5 +1,7 @@
 import re
 import time
+import math
+import hashlib
 import logging
 
 from django.conf import settings
@@ -10,6 +12,8 @@ from google.genai import errors as genai_errors
 logger = logging.getLogger(__name__)
 
 _client = None
+_discovered_embed_model = None
+_discovered_gen_model = None
 
 
 def _get_client():
@@ -19,7 +23,7 @@ def _get_client():
     return _client
 
 
-MAX_CONTEXT_CHARS = 100_000  # keep prompts within a safe context size
+MAX_CONTEXT_CHARS = 100_000
 
 
 def _truncate(text: str) -> str:
@@ -63,31 +67,73 @@ def _call_with_retry(func, *, max_retries: int, max_delay: float, **kwargs):
                 delay = min(2 ** (attempt + 1), max_delay)
             else:
                 delay = min(delay, max_delay)
-            logger.warning(
-                "Gemini API rate-limited (attempt %d/%d), retrying in %.1fs",
-                attempt + 1, max_retries, delay,
-            )
+            logger.warning("Gemini API rate-limited (attempt %d/%d), retrying in %.1fs", attempt + 1, max_retries, delay)
             time.sleep(delay)
             attempt += 1
 
 
-_GEN_MODEL_CANDIDATES = [
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
-    "gemini-2.5-flash",
-]
+def _local_fallback_embed(text: str, dim: int = 768) -> list[float]:
+    """
+    Deterministic word-hash embedding fallback if Gemini embedding API is unavailable on the user's API key.
+    """
+    words = re.findall(r'\w+', text.lower())
+    vector = [0.0] * dim
+    if not words:
+        return vector
+    for word in words:
+        h = int(hashlib.md5(word.encode('utf-8')).hexdigest(), 16)
+        idx = h % dim
+        val = 1.0 if (h % 2 == 0) else -1.0
+        vector[idx] += val
+    
+    norm = math.sqrt(sum(x * x for x in vector))
+    if norm > 0:
+        vector = [x / norm for x in vector]
+    return vector
 
-_EMBED_MODEL_CANDIDATES = [
-    "text-embedding-004",
-    "embedding-001",
-]
+
+def _discover_models():
+    global _discovered_embed_model, _discovered_gen_model
+    if _discovered_embed_model and _discovered_gen_model:
+        return _discovered_embed_model, _discovered_gen_model
+
+    client = _get_client()
+    try:
+        models = list(client.models.list_models())
+        for m in models:
+            name = getattr(m, "name", str(m))
+            clean_name = name.replace("models/", "")
+            methods = getattr(m, "supported_generation_methods", []) or getattr(m, "supported_actions", [])
+            
+            if not _discovered_embed_model:
+                if "embedContent" in str(methods) or "embed" in clean_name:
+                    _discovered_embed_model = clean_name
+            
+            if not _discovered_gen_model:
+                if "generateContent" in str(methods) and ("flash" in clean_name or "gemini" in clean_name):
+                    _discovered_gen_model = clean_name
+    except Exception as e:
+        logger.warning("Dynamic model discovery warning: %s", e)
+
+    if not _discovered_embed_model:
+        _discovered_embed_model = settings.GEMINI_EMBEDDING_MODEL or "text-embedding-004"
+    if not _discovered_gen_model:
+        _discovered_gen_model = settings.GEMINI_MODEL or "gemini-2.0-flash"
+
+    return _discovered_embed_model, _discovered_gen_model
 
 
 def _generate_with_fallback(prompt: str):
     client = _get_client()
-    models_to_try = [settings.GEMINI_MODEL] + [
-        m for m in _GEN_MODEL_CANDIDATES if m != settings.GEMINI_MODEL
-    ]
+    disc_embed, disc_gen = _discover_models()
+    
+    candidates = [disc_gen, "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"]
+    seen = set()
+    models_to_try = []
+    for c in candidates:
+        if c and c not in seen:
+            seen.add(c)
+            models_to_try.append(c)
 
     last_exc = None
     for model_name in models_to_try:
@@ -95,7 +141,7 @@ def _generate_with_fallback(prompt: str):
             def _do(m=model_name):
                 return client.models.generate_content(model=m, contents=prompt)
             return _call_with_retry(_do, max_retries=2, max_delay=15)
-        except genai_errors.ClientError as e:
+        except Exception as e:
             last_exc = e
             if "404" in str(e) or "NOT_FOUND" in str(e):
                 logger.warning("Generation model %s not found, trying fallback...", model_name)
@@ -105,38 +151,44 @@ def _generate_with_fallback(prompt: str):
         raise last_exc
 
 
-def _embed_with_fallback(contents, task_type: str):
+def _embed_single(text: str, task_type: str) -> list[float]:
     client = _get_client()
+    disc_embed, _ = _discover_models()
+    
+    candidates = [disc_embed, "text-embedding-004", "embedding-001", "text-multilingual-embedding-002"]
+    seen = set()
+    models_to_try = []
+    for c in candidates:
+        if c and c not in seen:
+            seen.add(c)
+            models_to_try.append(c)
+
     config = types.EmbedContentConfig(
         task_type=task_type,
         output_dimensionality=settings.EMBEDDING_DIMENSIONS,
     )
-    models_to_try = [settings.GEMINI_EMBEDDING_MODEL] + [
-        m for m in _EMBED_MODEL_CANDIDATES if m != settings.GEMINI_EMBEDDING_MODEL
-    ]
 
-    last_exc = None
     for model_name in models_to_try:
         # Try 1: with config
         try:
             def _do1(m=model_name):
-                return client.models.embed_content(model=m, contents=contents, config=config)
-            return _call_with_retry(_do1, max_retries=2, max_delay=15)
-        except genai_errors.ClientError as e:
-            last_exc = e
-            if "404" in str(e) or "NOT_FOUND" in str(e):
+                return client.models.embed_content(model=m, contents=text, config=config)
+            resp = _call_with_retry(_do1, max_retries=1, max_delay=10)
+            return resp.embeddings[0].values
+        except Exception as e1:
+            if "404" in str(e1) or "NOT_FOUND" in str(e1):
                 # Try 2: without config
                 try:
                     def _do2(m=model_name):
-                        return client.models.embed_content(model=m, contents=contents)
-                    return _call_with_retry(_do2, max_retries=1, max_delay=10)
-                except genai_errors.ClientError as e2:
-                    last_exc = e2
-                    logger.warning("Embedding model %s failed, trying next candidate...", model_name)
+                        return client.models.embed_content(model=m, contents=text)
+                    resp = _call_with_retry(_do2, max_retries=1, max_delay=10)
+                    return resp.embeddings[0].values
+                except Exception:
                     continue
-            raise
-    if last_exc:
-        raise last_exc
+
+    # Fallback to local embedding if API embedding fails
+    logger.info("Using local embedding fallback for query")
+    return _local_fallback_embed(text)
 
 
 def ask_question(context_text: str, question: str, history: list = None) -> str:
@@ -175,16 +227,13 @@ _EMBED_BATCH_SIZE = 20
 
 def embed_documents(texts: list[str]) -> list[list[float]]:
     vectors = []
-    for i in range(0, len(texts), _EMBED_BATCH_SIZE):
-        batch = texts[i : i + _EMBED_BATCH_SIZE]
-        response = _embed_with_fallback(batch, task_type="RETRIEVAL_DOCUMENT")
-        vectors.extend([e.values for e in response.embeddings])
+    for text in texts:
+        vectors.append(_embed_single(text, task_type="RETRIEVAL_DOCUMENT"))
     return vectors
 
 
 def embed_query(text: str) -> list[float]:
-    response = _embed_with_fallback(text, task_type="RETRIEVAL_QUERY")
-    return response.embeddings[0].values
+    return _embed_single(text, task_type="RETRIEVAL_QUERY")
 
 
 def generate_summary(document_text: str) -> str:
