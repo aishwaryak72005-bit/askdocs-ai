@@ -1,5 +1,5 @@
 """
-Django settings for DocuMind AI backend.
+Django settings for AskDocs AI backend.
 """
 import os
 from pathlib import Path
@@ -17,7 +17,7 @@ allowed_hosts_env = os.getenv("ALLOWED_HOSTS", "*")
 ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_env.split(",") if h.strip()]
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
 # ------------------------------------------------------------------
 # Applications

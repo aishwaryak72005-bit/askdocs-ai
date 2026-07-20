@@ -63,7 +63,7 @@ export default function Chat() {
         { role: "answer", text: data.answer, sources: data.sources, id: data.id },
       ]);
     } catch (err) {
-      const detail = err.response?.data?.detail || "Something went wrong answering that.";
+      const detail = err.response?.data?.detail || err.message || "Something went wrong answering that.";
       setMessages((prev) => [...prev, { role: "answer", text: detail, id: Date.now() + 1 }]);
     } finally {
       setAsking(false);
