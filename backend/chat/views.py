@@ -48,7 +48,7 @@ class AskQuestionView(APIView):
         # Retrieve recent chat history for context (up to 5 past messages)
         recent_history = list(
             ChatMessage.objects.filter(user=request.user)
-            .order_by("-created_at")[:5]
+            .order_by("-timestamp")[:5]
         )
         recent_history.reverse()
 
@@ -72,7 +72,7 @@ class ChatHistoryView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        messages = ChatMessage.objects.filter(user=request.user).order_by("created_at")
+        messages = ChatMessage.objects.filter(user=request.user).order_by("timestamp")
         return Response(ChatMessageSerializer(messages, many=True).data)
 
 
