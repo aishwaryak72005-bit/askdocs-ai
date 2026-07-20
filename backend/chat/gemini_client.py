@@ -29,7 +29,6 @@ def _truncate(text: str) -> str:
     return text
 
 
-_RETRYABLE_STATUS_CODES = {429, 503}
 _RETRY_DELAY_RE = re.compile(r"retryDelay['\"]?\s*[:=]\s*['\"]?(\d+(?:\.\d+)?)s")
 _RETRY_IN_RE = re.compile(r"retry in ([\d.]+)s")
 
@@ -39,16 +38,28 @@ def _is_retryable(error: Exception) -> bool:
     return "RESOURCE_EXHAUSTED" in text or "UNAVAILABLE" in text or "429" in text
 
 
-def _call_with_retry(func, max_retries=2, max_delay=15):
+def _parse_retry_delay(error: Exception) -> float:
+    """Extract suggested retry delay in seconds from a Gemini error, default 30s."""
+    text = str(error)
+    for pattern in (_RETRY_DELAY_RE, _RETRY_IN_RE):
+        m = pattern.search(text)
+        if m:
+            return min(float(m.group(1)), 60.0)
+    return 30.0
+
+
+def _call_with_retry(func, max_retries=2, max_delay=60):
     attempt = 0
     while True:
         try:
             return func()
         except genai_errors.ClientError as e:
             if not _is_retryable(e) or attempt >= max_retries:
+                if "RESOURCE_EXHAUSTED" in str(e) or "429" in str(e):
+                    raise Exception("AI service is currently busy. Please try again in a minute.")
                 raise
-            delay = min(2 ** (attempt + 1), max_delay)
-            logger.warning("Gemini rate-limited, retrying in %.1fs", delay)
+            delay = _parse_retry_delay(e)
+            logger.warning("Gemini rate-limited, retrying in %.1fs (attempt %d)", delay, attempt + 1)
             time.sleep(delay)
             attempt += 1
 
@@ -86,6 +97,7 @@ def _local_embed(text: str, dim: int = 768) -> list:
 _GEN_CANDIDATES = [
     "gemini-2.0-flash",
     "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
 ]
 
 
