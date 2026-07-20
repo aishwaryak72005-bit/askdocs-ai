@@ -1,87 +1,123 @@
 """
-Thin wrapper around a persistent Chroma collection used for RAG retrieval.
-One collection holds chunks from every user's documents; user_id and
-document_id are stored as metadata and used to filter queries so users
-only ever retrieve their own content.
+PostgreSQL-backed vector store for RAG retrieval.
+Replaces Chroma so document chunks persist across Render deploys.
+Uses cosine similarity computed in Python (no pgvector extension needed).
 """
-import chromadb
-from django.conf import settings
+import math
+import logging
+from django.db import models, connection
 
-_client = None
-_collection = None
+logger = logging.getLogger(__name__)
 
-COLLECTION_NAME = "documind_chunks"
+# ------------------------------------------------------------------
+# Ensure the table exists (called once at startup)
+# ------------------------------------------------------------------
+CREATE_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS chat_vectorchunk (
+    id          SERIAL PRIMARY KEY,
+    chunk_id    TEXT UNIQUE NOT NULL,
+    user_id     INTEGER NOT NULL,
+    document_id INTEGER NOT NULL,
+    file_name   TEXT NOT NULL,
+    page        INTEGER NOT NULL,
+    content     TEXT NOT NULL,
+    embedding   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_vectorchunk_user    ON chat_vectorchunk (user_id);
+CREATE INDEX IF NOT EXISTS idx_vectorchunk_doc     ON chat_vectorchunk (document_id);
+"""
 
 
-def _get_collection():
-    global _client, _collection
-    if _collection is None:
-        _client = chromadb.PersistentClient(
-            path=settings.CHROMA_DB_DIR,
-            settings=chromadb.config.Settings(anonymized_telemetry=False),
-        )
-        _collection = _client.get_or_create_collection(
-            name=COLLECTION_NAME,
-            metadata={"hnsw:space": "cosine"},
-        )
-    return _collection
+def _ensure_table():
+    with connection.cursor() as cur:
+        cur.execute(CREATE_TABLE_SQL)
 
 
-def add_chunks(document_id: int, user_id: int, file_name: str, chunks: list[dict], embeddings: list[list[float]]):
-    """
-    chunks: list of {"text": str, "page": int}
-    embeddings: parallel list of embedding vectors
-    """
+# ------------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------------
+def _dot(a, b):
+    return sum(x * y for x, y in zip(a, b))
+
+
+def _cosine_similarity(a, b):
+    dot = _dot(a, b)
+    mag_a = math.sqrt(_dot(a, a))
+    mag_b = math.sqrt(_dot(b, b))
+    if mag_a == 0 or mag_b == 0:
+        return 0.0
+    return dot / (mag_a * mag_b)
+
+
+def _vec_to_str(vec):
+    return ",".join(f"{v:.6f}" for v in vec)
+
+
+def _str_to_vec(s):
+    return [float(x) for x in s.split(",")]
+
+
+# ------------------------------------------------------------------
+# Public API (same interface as the old Chroma wrapper)
+# ------------------------------------------------------------------
+def add_chunks(document_id: int, user_id: int, file_name: str, chunks: list, embeddings: list):
+    """Store document chunks with their embeddings in PostgreSQL."""
+    _ensure_table()
     if not chunks:
         return
-    collection = _get_collection()
-    ids = [f"doc{document_id}_chunk{i}" for i in range(len(chunks))]
-    documents = [c["text"] for c in chunks]
-    metadatas = [
-        {"user_id": user_id, "document_id": document_id, "file_name": file_name, "page": c["page"]}
-        for c in chunks
-    ]
-    collection.add(ids=ids, embeddings=embeddings, documents=documents, metadatas=metadatas)
+    with connection.cursor() as cur:
+        for i, (chunk, vec) in enumerate(zip(chunks, embeddings)):
+            chunk_id = f"doc{document_id}_chunk{i}"
+            cur.execute(
+                """
+                INSERT INTO chat_vectorchunk
+                    (chunk_id, user_id, document_id, file_name, page, content, embedding)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (chunk_id) DO UPDATE SET
+                    content   = EXCLUDED.content,
+                    embedding = EXCLUDED.embedding
+                """,
+                [chunk_id, user_id, document_id, file_name, chunk["page"], chunk["text"], _vec_to_str(vec)],
+            )
 
 
 def delete_document_chunks(document_id: int):
-    collection = _get_collection()
-    collection.delete(where={"document_id": document_id})
+    """Remove all chunks for a document."""
+    _ensure_table()
+    with connection.cursor() as cur:
+        cur.execute("DELETE FROM chat_vectorchunk WHERE document_id = %s", [document_id])
 
 
-def query(query_embedding: list[float], user_id: int, document_id: int = None, top_k: int = 6):
-    """
-    Returns a list of {"text": str, "file_name": str, "page": int, "distance": float}
-    ordered by relevance, scoped to the given user (and optionally a single document).
-    """
-    collection = _get_collection()
-    where = {"user_id": user_id}
-    if document_id:
-        where = {"$and": [{"user_id": user_id}, {"document_id": document_id}]}
+def query(query_embedding: list, user_id: int, document_id: int = None, top_k: int = 6):
+    """Return top-k most relevant chunks for the query, scoped to the user."""
+    _ensure_table()
+    with connection.cursor() as cur:
+        if document_id:
+            cur.execute(
+                "SELECT content, file_name, page, embedding FROM chat_vectorchunk "
+                "WHERE user_id = %s AND document_id = %s",
+                [user_id, document_id],
+            )
+        else:
+            cur.execute(
+                "SELECT content, file_name, page, embedding FROM chat_vectorchunk "
+                "WHERE user_id = %s",
+                [user_id],
+            )
+        rows = cur.fetchall()
 
-    count = collection.count()
-    if count == 0:
+    if not rows:
         return []
 
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=min(top_k, count),
-        where=where,
-    )
+    scored = []
+    for content, file_name, page, emb_str in rows:
+        vec = _str_to_vec(emb_str)
+        sim = _cosine_similarity(query_embedding, vec)
+        scored.append((sim, content, file_name, page))
 
-    if not results["documents"] or not results["documents"][0]:
-        return []
+    scored.sort(key=lambda x: x[0], reverse=True)
 
-    hits = []
-    for text, meta, dist in zip(
-        results["documents"][0], results["metadatas"][0], results["distances"][0]
-    ):
-        hits.append(
-            {
-                "text": text,
-                "file_name": meta["file_name"],
-                "page": meta["page"],
-                "distance": dist,
-            }
-        )
-    return hits
+    return [
+        {"text": content, "file_name": file_name, "page": page, "distance": 1 - sim}
+        for sim, content, file_name, page in scored[:top_k]
+    ]
